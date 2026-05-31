@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiniela Mundial 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      --bg: #080b0f;
+      --surface: #111418;
+      --surface2: #1a1f26;
+      --green: #00e676;
+      --gold: #ffd60a;
+      --text: #f0f2f5;
+      --muted: #6b7280;
+      --border: rgba(255,255,255,0.08);
+      --red: #f87171;
+      --radius: 16px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,230,118,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,230,118,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+    .container {
+      width: 100%;
+      max-width: 420px;
+      padding: 24px;
+      position: relative;
+      z-index: 1;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0,230,118,0.1);
+      border: 1px solid rgba(0,230,118,0.3);
+      border-radius: 100px;
+      padding: 8px 20px;
+      margin-bottom: 16px;
+    }
+    .logo-badge p {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--green);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .logo h1 {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 60px;
+      line-height: 1;
+      letter-spacing: 3px;
+    }
+    .logo h1 span { color: var(--green); }
+    .logo p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+    }
+    .tabs {
+      display: flex;
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 28px;
+      gap: 4px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      background: var(--green);
+      color: #080b0f;
+    }
+    .form-group { margin-bottom: 16px; }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    input {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: var(--green); }
+    input::placeholder { color: var(--muted); }
+    .btn {
+      width: 100%;
+      padding: 15px;
+      background: var(--green);
+      border: none;
+      border-radius: 10px;
+      color: #080b0f;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(0,230,118,0.3);
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .error {
+      background: rgba(248,113,113,0.1);
+      border: 1px solid rgba(248,113,113,0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--red);
+      margin-top: 12px;
+      display: none;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <div class="logo-badge">
+        <span>⚽</span>
+        <p>Mundial 2026</p>
+      </div>
+      <h1>QUINIELA <span>MX</span></h1>
+      <p>Compite con tus amigos y gana la bolsa</p>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('login', this)">Entrar</button>
+        <button class="tab" onclick="switchTab('registro', this)">Registrarse</button>
+      </div>
+
+      <div id="panel-login" class="panel active">
+        <div class="form-group">
+          <label>Correo</label>
+          <input type="email" id="login-email" placeholder="tu@correo.com">
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="login-password" placeholder="••••••••">
+        </div>
+        <button class="btn" id="btn-login" onclick="login()">Entrar ⚽</button>
+        <div class="error" id="login-error"></div>
+      </div>
+
+      <div id="panel-registro" class="panel">
+        <div class="form-group">
+          <label>Nombre de usuario</label>
+          <input type="text" id="reg-username" placeholder="ej. elcrack10">
+        </div>
+        <div class="form-group">
+          <label>Correo</label>
+          <input type="email" id="reg-email" placeholder="tu@correo.com">
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="reg-password" placeholder="mínimo 6 caracteres">
+        </div>
+        <button class="btn" id="btn-registro" onclick="registro()">Crear cuenta</button>
+        <div class="error" id="reg-error"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBZSyB2k9h4a0prlXjQLOjRi6Qa180VyfY",
+      authDomain: "quiniela-mundial-e328f.firebaseapp.com",
+      projectId: "quiniela-mundial-e328f",
+      storageBucket: "quiniela-mundial-e328f.firebasestorage.app",
+      messagingSenderId: "994307754524",
+      appId: "1:994307754524:web:5eb600cb10bf7d90c76dd9"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    auth.onAuthStateChanged(user => {
+      if (user) window.location.href = 'dashboard.html';
+    });
+
+    function switchTab(tab, btn) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + tab).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    async function login() {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      const errorEl = document.getElementById('login-error');
+      const btn = document.getElementById('btn-login');
+      errorEl.style.display = 'none';
+      if (!email || !password) { showError(errorEl, 'Completa todos los campos'); return; }
+      btn.disabled = true;
+      btn.textContent = 'Entrando...';
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        window.location.href = 'dashboard.html';
+      } catch (e) {
+        showError(errorEl, 'Correo o contraseña incorrectos');
+        btn.disabled = false;
+        btn.textContent = 'Entrar ⚽';
+      }
+    }
+
+    async function registro() {
+      const username = document.getElementById('reg-username').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const password = document.getElementById('reg-password').value;
+      const errorEl = document.getElementById('reg-error');
+      const btn = document.getElementById('btn-registro');
+      errorEl.style.display = 'none';
+      if (!username || !email || !password) { showError(errorEl, 'Completa todos los campos'); return; }
+      if (username.length < 3) { showError(errorEl, 'El usuario debe tener al menos 3 caracteres'); return; }
+      if (password.length < 6) { showError(errorEl, 'La contraseña debe tener al menos 6 caracteres'); return; }
+      btn.disabled = true;
+      btn.textContent = 'Creando cuenta...';
+      try {
+        const check = await db.collection('users').where('username', '==', username).get();
+        if (!check.empty) { showError(errorEl, 'Ese nombre de usuario ya existe'); btn.disabled = false; btn.textContent = 'Crear cuenta'; return; }
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        await db.collection('users').doc(cred.user.uid).set({
+          username, email, isAdmin: false,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        window.location.href = 'dashboard.html';
+      } catch (e) {
+        showError(errorEl, e.code === 'auth/email-already-in-use' ? 'Ese correo ya está registrado' : 'Error al crear cuenta');
+        btn.disabled = false;
+        btn.textContent = 'Crear cuenta';
+      }
+    }
+
+    function showError(el, msg) {
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      const active = document.querySelector('.panel.active').id;
+      if (active === 'panel-login') login();
+      else registro();
+    });
+  </script>
+</body>
+</html>

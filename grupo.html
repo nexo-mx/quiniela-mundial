@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Grupo — Quiniela Mundial 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      --bg: #080b0f;
+      --surface: #111418;
+      --surface2: #1a1f26;
+      --green: #00e676;
+      --gold: #ffd60a;
+      --text: #f0f2f5;
+      --muted: #6b7280;
+      --border: rgba(255,255,255,0.08);
+      --red: #f87171;
+      --radius: 16px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .back-btn {
+      background: var(--surface2);
+      border: none;
+      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .header h2 { font-size: 17px; font-weight: 600; }
+    .content { padding: 20px; max-width: 600px; margin: 0 auto; }
+    /* Selector de acción inicial */
+    .action-tabs {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 4px;
+      gap: 4px;
+      margin-bottom: 20px;
+    }
+    .action-tab {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .action-tab.active { background: var(--green); color: #080b0f; }
+    /* Formularios */
+    .form-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .form-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .form-group { margin-bottom: 16px; }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+    input, select {
+      width: 100%;
+      padding: 13px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus { border-color: var(--green); }
+    select option { background: var(--surface2); }
+    .fee-hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--green);
+      border: none;
+      border-radius: 10px;
+      color: #080b0f;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:hover { box-shadow: 0 6px 20px rgba(0,230,118,0.3); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error {
+      background: rgba(248,113,113,0.1);
+      border: 1px solid rgba(248,113,113,0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--red);
+      margin-top: 10px;
+      display: none;
+    }
+    /* Grupo view */
+    #group-view { display: none; }
+    .group-switcher {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .group-chip {
+      flex-shrink: 0;
+      padding: 8px 16px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .group-chip.active {
+      background: var(--green);
+      color: #080b0f;
+      border-color: var(--green);
+    }
+    /* Bolsa card */
+    .bolsa-card {
+      background: linear-gradient(135deg, #1a1500 0%, #1a1f26 100%);
+      border: 1px solid rgba(255,214,10,0.2);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .bolsa-card::before {
+      content: '🏆';
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 48px;
+      opacity: 0.15;
+    }
+    .bolsa-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255,214,10,0.7);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .bolsa-amount {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 52px;
+      color: var(--gold);
+      line-height: 1;
+    }
+    .bolsa-meta {
+      font-size: 13px;
+      color: rgba(255,214,10,0.5);
+      margin-top: 6px;
+    }
+    /* Invite code */
+    .invite-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .invite-info .invite-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+    }
+    .invite-code {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 28px;
+      letter-spacing: 4px;
+      color: var(--green);
+    }
+    .copy-btn {
+      background: rgba(0,230,118,0.1);
+      border: 1px solid rgba(0,230,118,0.3);
+      border-radius: 8px;
+      color: var(--green);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .copy-btn:hover { background: rgba(0,230,118,0.2); }
+    /* Ranking table */
+    .ranking-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .ranking-header {
+      padding: 16px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+    }
+    .ranking-row {
+      display: flex;
+      align-items: center;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      transition: background 0.2s;
+    }
+    .ranking-row:last-child { border-bottom: none; }
+    .ranking-row:hover { background: var(--surface2); }
+    .ranking-row.me { background: rgba(0,230,118,0.05); }
+    .pos {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 22px;
+      min-width: 32px;
+      text-align: center;
+    }
+    .pos.gold { color: var(--gold); }
+    .pos.silver { color: #c0c0c0; }
+    .pos.bronze { color: #cd7f32; }
+    .rank-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .rank-name { flex: 1; font-weight: 500; font-size: 15px; }
+    .rank-pts {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 24px;
+      color: var(--green);
+    }
+    .rank-pts-label { font-size: 11px; color: var(--muted); }
+    /* Nav */
+    .nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      padding: 8px 0 12px;
+      z-index: 100;
+    }
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px;
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .nav-item .icon { font-size: 22px; }
+    .nav-item.active { color: var(--green); }
+    .skeleton {
+      background: var(--surface2);
+      border-radius: var(--radius);
+      height: 100px;
+      margin-bottom: 12px;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .panel { display: none; }
+    .panel.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <button class="back-btn" onclick="window.location.href='dashboard.html'">←</button>
+    <h2>Grupos de amigos</h2>
+  </div>
+
+  <div class="content">
+    <!-- Si el usuario ya tiene grupos, mostrar sus grupos primero -->
+    <div id="group-view">
+      <div class="group-switcher" id="group-switcher"></div>
+      <div id="group-content">
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+      </div>
+    </div>
+
+    <!-- Acciones -->
+    <div id="action-section">
+      <div class="action-tabs">
+        <button class="action-tab active" onclick="switchAction('crear', this)">➕ Crear grupo</button>
+        <button class="action-tab" onclick="switchAction('unirse', this)">🔑 Unirme</button>
+      </div>
+
+      <div id="panel-crear" class="panel active">
+        <div class="form-card">
+          <div class="form-title">Nuevo grupo</div>
+          <div class="form-group">
+            <label>Nombre del grupo</label>
+            <input type="text" id="group-name" placeholder="ej. Los Cracks de la Oficina">
+          </div>
+          <div class="form-group">
+            <label>Quiniela</label>
+            <select id="group-pool">
+              <option value="">Cargando...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Monto de entrada por persona</label>
+            <input type="number" id="group-fee" placeholder="100" min="0">
+            <div class="fee-hint">💡 Solo referencia — la app no cobra nada</div>
+          </div>
+          <button class="btn" onclick="crearGrupo()">Crear grupo</button>
+          <div class="error" id="crear-error"></div>
+        </div>
+      </div>
+
+      <div id="panel-unirse" class="panel">
+        <div class="form-card">
+          <div class="form-title">Unirme a un grupo</div>
+          <div class="form-group">
+            <label>Código de invitación</label>
+            <input type="text" id="invite-input" placeholder="ej. a1b2c3d4" maxlength="8" style="text-transform:uppercase; letter-spacing:4px; font-family: 'Bebas Neue'; font-size:24px;">
+          </div>
+          <button class="btn" onclick="unirseGrupo()">Entrar al grupo</button>
+          <div class="error" id="unirse-error"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <a href="dashboard.html" class="nav-item">
+      <span class="icon">🏠</span>Inicio
+    </a>
+    <a href="quiniela.html" class="nav-item">
+      <span class="icon">⚽</span>Quiniela
+    </a>
+    <a href="grupo.html" class="nav-item active">
+      <span class="icon">👥</span>Mi grupo
+    </a>
+    <a href="ranking.html" class="nav-item">
+      <span class="icon">🏆</span>Ranking
+    </a>
+  </nav>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBZSyB2k9h4a0prlXjQLOjRi6Qa180VyfY",
+      authDomain: "quiniela-mundial-e328f.firebaseapp.com",
+      projectId: "quiniela-mundial-e328f",
+      storageBucket: "quiniela-mundial-e328f.firebasestorage.app",
+      messagingSenderId: "994307754524",
+      appId: "1:994307754524:web:5eb600cb10bf7d90c76dd9"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const params = new URLSearchParams(window.location.search);
+    let currentGroupId = params.get('group');
+    let currentUser = null;
+    let userGroups = [];
+
+    auth.onAuthStateChanged(async user => {
+      if (!user) { window.location.href = 'index.html'; return; }
+      currentUser = user;
+      loadPools();
+      loadUserGroups();
+    });
+
+    async function loadPools() {
+      const snap = await db.collection('pools').where('isActive', '==', true).get();
+      const sel = document.getElementById('group-pool');
+      sel.innerHTML = '';
+      if (snap.empty) {
+        sel.innerHTML = '<option value="">No hay quinielas activas</option>';
+        return;
+      }
+      snap.forEach(doc => {
+        const opt = document.createElement('option');
+        opt.value = doc.id;
+        opt.textContent = doc.data().name;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function loadUserGroups() {
+      const snap = await db.collection('groups').where('members', 'array-contains', currentUser.uid).get();
+      userGroups = [];
+      snap.forEach(doc => userGroups.push({ id: doc.id, ...doc.data() }));
+
+      if (userGroups.length > 0) {
+        document.getElementById('group-view').style.display = 'block';
+        renderGroupSwitcher();
+        if (!currentGroupId) currentGroupId = userGroups[0].id;
+        loadGroupDetail(currentGroupId);
+      }
+    }
+
+    function renderGroupSwitcher() {
+      const container = document.getElementById('group-switcher');
+      container.innerHTML = '';
+      userGroups.forEach(g => {
+        const chip = document.createElement('div');
+        chip.className = `group-chip${g.id === currentGroupId ? ' active' : ''}`;
+        chip.textContent = g.name;
+        chip.onclick = () => {
+          currentGroupId = g.id;
+          document.querySelectorAll('.group-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          loadGroupDetail(g.id);
+        };
+        container.appendChild(chip);
+      });
+    }
+
+    async function loadGroupDetail(groupId) {
+      const gc = document.getElementById('group-content');
+      gc.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div>';
+
+      const groupDoc = await db.collection('groups').doc(groupId).get();
+      const group = groupDoc.data();
+      const members = group.members || [];
+      const bolsa = members.length * (group.entryFee || 0);
+
+      // Get points for each member
+      const pointsMap = {};
+      const ptsSnap = await db.collection('matchPoints').where('poolId', '==', group.poolId).get();
+      ptsSnap.forEach(d => {
+        const data = d.data();
+        if (members.includes(data.userId)) {
+          pointsMap[data.userId] = (pointsMap[data.userId] || 0) + data.points;
+        }
+      });
+
+      // Get user profiles
+      const profiles = {};
+      for (const uid of members) {
+        const uDoc = await db.collection('users').doc(uid).get();
+        if (uDoc.exists) profiles[uid] = uDoc.data();
+      }
+
+      // Sort by points
+      const sorted = [...members].sort((a, b) => (pointsMap[b] || 0) - (pointsMap[a] || 0));
+
+      gc.innerHTML = `
+        <div class="bolsa-card">
+          <div class="bolsa-label">Bolsa del grupo</div>
+          <div class="bolsa-amount">$${bolsa.toLocaleString()}</div>
+          <div class="bolsa-meta">${members.length} integrantes × $${(group.entryFee||0).toLocaleString()} = bolsa total</div>
+        </div>
+
+        <div class="invite-card">
+          <div class="invite-info">
+            <div class="invite-label">Código de invitación</div>
+            <div class="invite-code">${group.inviteCode}</div>
+          </div>
+          <button class="copy-btn" onclick="copyCode('${group.inviteCode}')">Copiar 📋</button>
+        </div>
+
+        <div class="ranking-card">
+          <div class="ranking-header">
+            <span>Ranking del grupo — ${group.name}</span>
+            <span style="color:var(--muted);font-size:12px">${members.length} jugadores</span>
+          </div>
+          ${sorted.map((uid, i) => {
+            const p = profiles[uid] || { username: 'Usuario' };
+            const pts = pointsMap[uid] || 0;
+            const posClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+            const isMe = uid === currentUser.uid;
+            return `
+              <div class="ranking-row${isMe ? ' me' : ''}">
+                <div class="pos ${posClass}">${medal || (i + 1)}</div>
+                <div class="rank-avatar">${p.username[0].toUpperCase()}</div>
+                <div class="rank-name">${p.username}${isMe ? ' <span style="color:var(--green);font-size:12px">(tú)</span>' : ''}</div>
+                <div style="text-align:right">
+                  <div class="rank-pts">${pts}</div>
+                  <div class="rank-pts-label">pts</div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function copyCode(code) {
+      navigator.clipboard.writeText(code).then(() => {
+        alert('¡Código copiado! Compártelo con tus amigos: ' + code);
+      });
+    }
+
+    async function crearGrupo() {
+      const name = document.getElementById('group-name').value.trim();
+      const poolId = document.getElementById('group-pool').value;
+      const fee = parseFloat(document.getElementById('group-fee').value) || 0;
+      const errorEl = document.getElementById('crear-error');
+      errorEl.style.display = 'none';
+
+      if (!name) { showError(errorEl, 'Ponle nombre al grupo'); return; }
+      if (!poolId) { showError(errorEl, 'Selecciona una quiniela'); return; }
+
+      const inviteCode = generateCode();
+      try {
+        const ref = await db.collection('groups').add({
+          name, poolId, entryFee: fee,
+          inviteCode,
+          createdBy: currentUser.uid,
+          members: [currentUser.uid],
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        currentGroupId = ref.id;
+        loadUserGroups();
+        document.getElementById('group-name').value = '';
+        document.getElementById('group-fee').value = '';
+      } catch (e) {
+        showError(errorEl, 'Error al crear el grupo. Intenta de nuevo.');
+      }
+    }
+
+    async function unirseGrupo() {
+      const code = document.getElementById('invite-input').value.trim().toLowerCase();
+      const errorEl = document.getElementById('unirse-error');
+      errorEl.style.display = 'none';
+
+      if (!code) { showError(errorEl, 'Ingresa el código de invitación'); return; }
+
+      const snap = await db.collection('groups').where('inviteCode', '==', code).limit(1).get();
+      if (snap.empty) { showError(errorEl, 'Código inválido — revisa que esté bien escrito'); return; }
+
+      const groupDoc = snap.docs[0];
+      const group = groupDoc.data();
+      if (group.members && group.members.includes(currentUser.uid)) {
+        showError(errorEl, 'Ya eres miembro de este grupo');
+        return;
+      }
+
+      try {
+        await db.collection('groups').doc(groupDoc.id).update({
+          members: firebase.firestore.FieldValue.arrayUnion(currentUser.uid)
+        });
+        currentGroupId = groupDoc.id;
+        document.getElementById('invite-input').value = '';
+        loadUserGroups();
+      } catch (e) {
+        showError(errorEl, 'Error al unirte. Intenta de nuevo.');
+      }
+    }
+
+    function switchAction(tab, btn) {
+      document.querySelectorAll('.action-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + tab).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    function showError(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+
+    function generateCode() {
+      return Math.random().toString(36).substring(2, 10);
+    }
+  </script>
+</body>
+</html>

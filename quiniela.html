@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiniela — Mundial 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      --bg: #080b0f;
+      --surface: #111418;
+      --surface2: #1a1f26;
+      --green: #00e676;
+      --gold: #ffd60a;
+      --text: #f0f2f5;
+      --muted: #6b7280;
+      --border: rgba(255,255,255,0.08);
+      --red: #f87171;
+      --radius: 16px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .back-btn {
+      background: var(--surface2);
+      border: none;
+      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .header-title h2 {
+      font-size: 17px;
+      font-weight: 600;
+    }
+    .header-title p {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .deadline-banner {
+      background: rgba(255,214,10,0.1);
+      border-bottom: 1px solid rgba(255,214,10,0.2);
+      padding: 10px 20px;
+      font-size: 13px;
+      color: var(--gold);
+      text-align: center;
+    }
+    .deadline-banner.closed {
+      background: rgba(107,114,128,0.1);
+      color: var(--muted);
+    }
+    .content { padding: 16px 20px; max-width: 600px; margin: 0 auto; }
+    .group-header {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 16px 0 8px;
+    }
+    /* Match card */
+    .match-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 10px;
+    }
+    .match-date {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .match-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .team {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+    .team-flag { font-size: 28px; }
+    .team-name {
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .team-code {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .score-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .score-input {
+      width: 48px;
+      height: 48px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Bebas Neue', cursive;
+      font-size: 28px;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .score-input:focus { border-color: var(--green); }
+    .score-input:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .score-sep {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 24px;
+      color: var(--muted);
+    }
+    /* Prediction states */
+    .match-card.submitted {
+      border-color: rgba(0,230,118,0.2);
+    }
+    .match-card.submitted .score-input {
+      border-color: rgba(0,230,118,0.3);
+      background: rgba(0,230,118,0.05);
+      color: var(--green);
+    }
+    .match-card.finished { border-color: rgba(107,114,128,0.3); }
+    .match-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+    }
+    .points-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .pts-3 { color: var(--green); }
+    .pts-1 { color: var(--gold); }
+    .pts-0 { color: var(--red); }
+    .result-real {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .result-real span { color: var(--text); font-weight: 600; }
+    .submit-btn {
+      background: var(--green);
+      border: none;
+      border-radius: 8px;
+      color: #080b0f;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .submit-btn:hover { box-shadow: 0 4px 12px rgba(0,230,118,0.3); }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .locked-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      padding: 8px 0 12px;
+      z-index: 100;
+    }
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .nav-item .icon { font-size: 22px; }
+    .nav-item.active { color: var(--green); }
+    .empty {
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 40px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; }
+    .skeleton {
+      background: var(--surface2);
+      border-radius: var(--radius);
+      height: 120px;
+      margin-bottom: 10px;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .pool-selector {
+      display: flex;
+      gap: 8px;
+      padding: 16px 20px 0;
+      overflow-x: auto;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .pool-chip {
+      flex-shrink: 0;
+      padding: 8px 16px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .pool-chip.active {
+      background: var(--green);
+      color: #080b0f;
+      border-color: var(--green);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <button class="back-btn" onclick="window.location.href='dashboard.html'">←</button>
+    <div class="header-title">
+      <h2 id="pool-name">Cargando...</h2>
+      <p id="pool-phase">—</p>
+    </div>
+  </div>
+
+  <div id="deadline-banner" class="deadline-banner" style="display:none"></div>
+
+  <div class="pool-selector" id="pool-selector"></div>
+
+  <div class="content">
+    <div id="matches-container">
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <a href="dashboard.html" class="nav-item">
+      <span class="icon">🏠</span>Inicio
+    </a>
+    <a href="quiniela.html" class="nav-item active">
+      <span class="icon">⚽</span>Quiniela
+    </a>
+    <a href="grupo.html" class="nav-item">
+      <span class="icon">👥</span>Mi grupo
+    </a>
+    <a href="ranking.html" class="nav-item">
+      <span class="icon">🏆</span>Ranking
+    </a>
+  </nav>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBZSyB2k9h4a0prlXjQLOjRi6Qa180VyfY",
+      authDomain: "quiniela-mundial-e328f.firebaseapp.com",
+      projectId: "quiniela-mundial-e328f",
+      storageBucket: "quiniela-mundial-e328f.firebasestorage.app",
+      messagingSenderId: "994307754524",
+      appId: "1:994307754524:web:5eb600cb10bf7d90c76dd9"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const params = new URLSearchParams(window.location.search);
+    let currentPoolId = params.get('pool');
+    let currentUser = null;
+    let poolData = null;
+    let userPredictions = {};
+    let canPredict = false;
+
+    auth.onAuthStateChanged(async user => {
+      if (!user) { window.location.href = 'index.html'; return; }
+      currentUser = user;
+      await loadPoolSelector();
+      if (!currentPoolId) {
+        // Load first active pool
+        const snap = await db.collection('pools').where('isActive', '==', true).limit(1).get();
+        if (!snap.empty) currentPoolId = snap.docs[0].id;
+      }
+      if (currentPoolId) loadPool();
+    });
+
+    async function loadPoolSelector() {
+      const snap = await db.collection('pools').orderBy('createdAt').get();
+      const container = document.getElementById('pool-selector');
+      container.innerHTML = '';
+      snap.forEach(doc => {
+        const p = doc.data();
+        const chip = document.createElement('a');
+        chip.className = `pool-chip${doc.id === currentPoolId ? ' active' : ''}`;
+        chip.textContent = p.name;
+        chip.href = `quiniela.html?pool=${doc.id}`;
+        container.appendChild(chip);
+      });
+    }
+
+    async function loadPool() {
+      const poolDoc = await db.collection('pools').doc(currentPoolId).get();
+      if (!poolDoc.exists) return;
+      poolData = poolDoc.data();
+      document.getElementById('pool-name').textContent = poolData.name;
+      document.getElementById('pool-phase').textContent = phaseLabel(poolData.phase);
+
+      // Check if predictions are open
+      const now = new Date();
+      const deadline = poolData.predictionDeadline ? poolData.predictionDeadline.toDate() : null;
+      canPredict = poolData.isActive && (!deadline || now < deadline);
+
+      const banner = document.getElementById('deadline-banner');
+      if (deadline) {
+        banner.style.display = 'block';
+        if (canPredict) {
+          banner.className = 'deadline-banner';
+          banner.textContent = `⏱ Cierre de predicciones: ${formatDate(deadline)}`;
+        } else {
+          banner.className = 'deadline-banner closed';
+          banner.textContent = '🔒 Las predicciones para esta fase están cerradas';
+        }
+      }
+
+      // Load user predictions
+      const predsSnap = await db.collection('predictions')
+        .where('userId', '==', currentUser.uid)
+        .where('poolId', '==', currentPoolId)
+        .get();
+      predsSnap.forEach(d => { userPredictions[d.data().matchId] = d.data(); });
+
+      // Load matches
+      const matchesSnap = await db.collection('matches')
+        .where('poolId', '==', currentPoolId)
+        .orderBy('matchDate', 'asc')
+        .get();
+
+      renderMatches(matchesSnap);
+    }
+
+    function renderMatches(snap) {
+      const container = document.getElementById('matches-container');
+      if (snap.empty) {
+        container.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No hay partidos en esta quiniela aún</div>';
+        return;
+      }
+      container.innerHTML = '';
+      let currentGroup = '';
+
+      snap.forEach(doc => {
+        const m = doc.data();
+        const prediction = userPredictions[doc.id];
+        const isFinished = m.isFinished;
+
+        // Group header (by match date day)
+        const matchDay = formatDay(m.matchDate.toDate());
+        if (matchDay !== currentGroup) {
+          currentGroup = matchDay;
+          const h = document.createElement('div');
+          h.className = 'group-header';
+          h.textContent = matchDay;
+          container.appendChild(h);
+        }
+
+        const card = document.createElement('div');
+        card.className = `match-card${prediction ? ' submitted' : ''}${isFinished ? ' finished' : ''}`;
+
+        const matchTime = m.matchDate.toDate().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        const homePred = prediction ? prediction.homeScorePred : '';
+        const awayPred = prediction ? prediction.awayScorePred : '';
+        const disabled = !canPredict || !!prediction || isFinished;
+
+        let footer = '';
+        if (prediction && isFinished) {
+          const pts = calcPoints(prediction.homeScorePred, prediction.awayScorePred, m.homeScore, m.awayScore);
+          const cls = pts === 3 ? 'pts-3' : pts === 1 ? 'pts-1' : 'pts-0';
+          const emoji = pts === 3 ? '🎯' : pts === 1 ? '✅' : '❌';
+          footer = `
+            <div class="result-real">Resultado: <span>${m.homeScore} — ${m.awayScore}</span></div>
+            <div class="points-badge ${cls}">${emoji} ${pts} pts</div>
+          `;
+        } else if (prediction) {
+          footer = `
+            <div></div>
+            <div class="locked-badge">🔒 Predicción enviada</div>
+          `;
+        } else if (isFinished) {
+          footer = `
+            <div class="result-real">Resultado: <span>${m.homeScore} — ${m.awayScore}</span></div>
+            <div class="locked-badge">Sin predicción</div>
+          `;
+        } else if (canPredict) {
+          footer = `
+            <div></div>
+            <button class="submit-btn" onclick="submitPrediction('${doc.id}', '${m.homeTeamName}', '${m.awayTeamName}')">
+              Guardar
+            </button>
+          `;
+        } else {
+          footer = `<div></div><div class="locked-badge">🔒 Predicciones cerradas</div>`;
+        }
+
+        card.innerHTML = `
+          <div class="match-date">${matchTime} hrs — ${m.group ? 'Grupo ' + m.group : 'Eliminatoria'}</div>
+          <div class="match-row">
+            <div class="team">
+              <div class="team-flag">${m.homeTeamFlag || '🏳️'}</div>
+              <div class="team-name">${m.homeTeamName}</div>
+              <div class="team-code">${m.homeTeamCode || ''}</div>
+            </div>
+            <div class="score-section">
+              <input class="score-input" type="number" min="0" max="20"
+                id="home-${doc.id}" value="${homePred}" ${disabled ? 'disabled' : ''}
+                placeholder="0">
+              <div class="score-sep">—</div>
+              <input class="score-input" type="number" min="0" max="20"
+                id="away-${doc.id}" value="${awayPred}" ${disabled ? 'disabled' : ''}
+                placeholder="0">
+            </div>
+            <div class="team">
+              <div class="team-flag">${m.awayTeamFlag || '🏳️'}</div>
+              <div class="team-name">${m.awayTeamName}</div>
+              <div class="team-code">${m.awayTeamCode || ''}</div>
+            </div>
+          </div>
+          <div class="match-footer">${footer}</div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    async function submitPrediction(matchId, homeName, awayName) {
+      const homeVal = document.getElementById('home-' + matchId).value;
+      const awayVal = document.getElementById('away-' + matchId).value;
+      if (homeVal === '' || awayVal === '') {
+        alert('Ingresa el marcador para ' + homeName + ' vs ' + awayName);
+        return;
+      }
+      const home = parseInt(homeVal);
+      const away = parseInt(awayVal);
+      if (isNaN(home) || isNaN(away) || home < 0 || away < 0) {
+        alert('Marcador inválido');
+        return;
+      }
+      try {
+        await db.collection('predictions').doc(`${currentUser.uid}_${matchId}`).set({
+          userId: currentUser.uid,
+          matchId: matchId,
+          poolId: currentPoolId,
+          homeScorePred: home,
+          awayScorePred: away,
+          submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        userPredictions[matchId] = { homeScorePred: home, awayScorePred: away };
+        // Reload to reflect locked state
+        loadPool();
+      } catch (e) {
+        alert('Error al guardar la predicción. Intenta de nuevo.');
+      }
+    }
+
+    function calcPoints(homePred, awayPred, homeReal, awayReal) {
+      if (homePred === homeReal && awayPred === awayReal) return 3;
+      if (Math.sign(homePred - awayPred) === Math.sign(homeReal - awayReal)) return 1;
+      return 0;
+    }
+
+    function phaseLabel(phase) {
+      const labels = { groups: 'Fase de grupos', round_of_16: 'Octavos de final', quarterfinals: 'Cuartos de final', semifinals: 'Semifinales', final: 'Final' };
+      return labels[phase] || phase;
+    }
+
+    function formatDate(d) {
+      return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function formatDay(d) {
+      return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+    }
+  </script>
+</body>
+</html>

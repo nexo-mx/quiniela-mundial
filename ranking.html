@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ranking — Quiniela Mundial 2026</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      --bg: #080b0f;
+      --surface: #111418;
+      --surface2: #1a1f26;
+      --green: #00e676;
+      --gold: #ffd60a;
+      --text: #f0f2f5;
+      --muted: #6b7280;
+      --border: rgba(255,255,255,0.08);
+      --radius: 16px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .header h2 {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 32px;
+      letter-spacing: 2px;
+    }
+    .header h2 span { color: var(--gold); }
+    .pool-filter {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .filter-chip {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filter-chip.active {
+      background: var(--green);
+      color: #080b0f;
+      border-color: var(--green);
+    }
+    .content { max-width: 600px; margin: 0 auto; padding: 16px 20px; }
+    /* Top 3 podium */
+    .podium {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding: 20px 0;
+    }
+    .podium-place {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .podium-avatar {
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #080b0f;
+      font-size: 18px;
+    }
+    .podium-place.first .podium-avatar {
+      width: 64px;
+      height: 64px;
+      background: var(--gold);
+      font-size: 22px;
+    }
+    .podium-place.second .podium-avatar,
+    .podium-place.third .podium-avatar {
+      width: 52px;
+      height: 52px;
+      background: var(--surface2);
+      color: var(--text);
+    }
+    .podium-name {
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .podium-pts {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 20px;
+      color: var(--green);
+    }
+    .podium-block {
+      border-radius: 8px 8px 0 0;
+      width: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .podium-place.first .podium-block {
+      background: rgba(255,214,10,0.15);
+      border: 1px solid rgba(255,214,10,0.3);
+      height: 60px;
+    }
+    .podium-place.second .podium-block {
+      background: rgba(192,192,192,0.1);
+      border: 1px solid rgba(192,192,192,0.2);
+      height: 44px;
+    }
+    .podium-place.third .podium-block {
+      background: rgba(205,127,50,0.1);
+      border: 1px solid rgba(205,127,50,0.2);
+      height: 32px;
+    }
+    .medal { font-size: 20px; }
+    /* Ranking list */
+    .ranking-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .ranking-row {
+      display: flex;
+      align-items: center;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      transition: background 0.2s;
+    }
+    .ranking-row:last-child { border-bottom: none; }
+    .ranking-row:hover { background: var(--surface2); }
+    .ranking-row.me {
+      background: rgba(0,230,118,0.05);
+      border-left: 3px solid var(--green);
+    }
+    .pos {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 20px;
+      color: var(--muted);
+      min-width: 28px;
+      text-align: center;
+    }
+    .rank-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .rank-info { flex: 1 }
+    .rank-name { font-weight: 500; font-size: 15px; }
+    .rank-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .rank-pts {
+      text-align: right;
+    }
+    .rank-pts-val {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 26px;
+      color: var(--green);
+    }
+    .rank-pts-label { font-size: 11px; color: var(--muted); }
+    /* My position banner */
+    .my-pos-banner {
+      background: rgba(0,230,118,0.1);
+      border: 1px solid rgba(0,230,118,0.2);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .my-pos-banner .label { font-size: 12px; color: var(--green); text-transform: uppercase; letter-spacing: 0.8px; }
+    .my-pos-banner .pos-val {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 32px;
+      color: var(--green);
+    }
+    .my-pos-banner .pts-val {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 32px;
+      color: var(--text);
+    }
+    /* Nav */
+    .nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      padding: 8px 0 12px;
+      z-index: 100;
+    }
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px;
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .nav-item .icon { font-size: 22px; }
+    .nav-item.active { color: var(--green); }
+    .skeleton {
+      background: var(--surface2);
+      border-radius: var(--radius);
+      height: 60px;
+      margin-bottom: 4px;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .empty {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>RANKING <span>GLOBAL</span></h2>
+    <div class="pool-filter" id="pool-filter">
+      <button class="filter-chip active" data-pool="all" onclick="filterPool('all', this)">Todo</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div id="my-pos-banner" style="display:none" class="my-pos-banner">
+      <div>
+        <div class="label">Tu posición</div>
+        <div class="pos-val" id="my-pos">—</div>
+      </div>
+      <div style="text-align:right">
+        <div class="label">Tus puntos</div>
+        <div class="pts-val" id="my-pts">—</div>
+      </div>
+    </div>
+
+    <div id="podium-container"></div>
+    <div id="ranking-container">
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <a href="dashboard.html" class="nav-item">
+      <span class="icon">🏠</span>Inicio
+    </a>
+    <a href="quiniela.html" class="nav-item">
+      <span class="icon">⚽</span>Quiniela
+    </a>
+    <a href="grupo.html" class="nav-item">
+      <span class="icon">👥</span>Mi grupo
+    </a>
+    <a href="ranking.html" class="nav-item active">
+      <span class="icon">🏆</span>Ranking
+    </a>
+  </nav>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBZSyB2k9h4a0prlXjQLOjRi6Qa180VyfY",
+      authDomain: "quiniela-mundial-e328f.firebaseapp.com",
+      projectId: "quiniela-mundial-e328f",
+      storageBucket: "quiniela-mundial-e328f.firebasestorage.app",
+      messagingSenderId: "994307754524",
+      appId: "1:994307754524:web:5eb600cb10bf7d90c76dd9"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUser = null;
+    let currentPool = 'all';
+    let allUsers = {};
+    let pools = {};
+
+    auth.onAuthStateChanged(async user => {
+      if (!user) { window.location.href = 'index.html'; return; }
+      currentUser = user;
+      await loadPools();
+      loadRanking();
+    });
+
+    async function loadPools() {
+      const snap = await db.collection('pools').orderBy('createdAt').get();
+      const filter = document.getElementById('pool-filter');
+      snap.forEach(doc => {
+        pools[doc.id] = doc.data().name;
+        const chip = document.createElement('button');
+        chip.className = 'filter-chip';
+        chip.dataset.pool = doc.id;
+        chip.textContent = doc.data().name;
+        chip.onclick = () => filterPool(doc.id, chip);
+        filter.appendChild(chip);
+      });
+    }
+
+    function filterPool(poolId, btn) {
+      currentPool = poolId;
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      loadRanking();
+    }
+
+    async function loadRanking() {
+      document.getElementById('ranking-container').innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+      document.getElementById('podium-container').innerHTML = '';
+
+      // Get all users
+      const usersSnap = await db.collection('users').get();
+      usersSnap.forEach(d => { allUsers[d.id] = d.data(); });
+
+      // Get points
+      let ptsQuery = db.collection('matchPoints');
+      if (currentPool !== 'all') ptsQuery = ptsQuery.where('poolId', '==', currentPool);
+      const ptsSnap = await ptsQuery.get();
+
+      const pointsMap = {};
+      const exactMap = {};
+      ptsSnap.forEach(d => {
+        const data = d.data();
+        pointsMap[data.userId] = (pointsMap[data.userId] || 0) + data.points;
+        if (data.points === 3) exactMap[data.userId] = (exactMap[data.userId] || 0) + 1;
+      });
+
+      // Sort
+      const ranked = Object.keys(allUsers)
+        .map(uid => ({ uid, pts: pointsMap[uid] || 0, exact: exactMap[uid] || 0 }))
+        .sort((a, b) => b.pts - a.pts || b.exact - a.exact);
+
+      // My position
+      const myPos = ranked.findIndex(r => r.uid === currentUser.uid) + 1;
+      const myPts = pointsMap[currentUser.uid] || 0;
+      if (myPos > 0) {
+        document.getElementById('my-pos-banner').style.display = 'flex';
+        document.getElementById('my-pos').textContent = '#' + myPos;
+        document.getElementById('my-pts').textContent = myPts + ' pts';
+      }
+
+      // Podium (top 3)
+      renderPodium(ranked.slice(0, 3));
+      renderList(ranked);
+    }
+
+    function renderPodium(top3) {
+      if (top3.length < 1) return;
+      const container = document.getElementById('podium-container');
+      const order = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : [top3[0]];
+      const classes = top3.length >= 3 ? ['second', 'first', 'third'] : ['first'];
+      const medals = ['🥈', '🥇', '🥉'];
+
+      container.innerHTML = `<div class="podium">${order.map((p, i) => {
+        if (!p) return '';
+        const u = allUsers[p.uid] || { username: '?' };
+        const cls = classes[i];
+        const medal = medals[i];
+        return `
+          <div class="podium-place ${cls}">
+            <div class="podium-avatar">${u.username[0].toUpperCase()}</div>
+            <div class="podium-name">${u.username}</div>
+            <div class="podium-pts">${p.pts} pts</div>
+            <div class="podium-block"><span class="medal">${medal}</span></div>
+          </div>
+        `;
+      }).join('')}</div>`;
+    }
+
+    function renderList(ranked) {
+      const container = document.getElementById('ranking-container');
+      if (ranked.length === 0) {
+        container.innerHTML = '<div class="empty"><div class="empty-icon">🏆</div>Aún no hay puntos registrados</div>';
+        return;
+      }
+      container.innerHTML = `
+        <div class="ranking-card">
+          ${ranked.map((r, i) => {
+            const u = allUsers[r.uid] || { username: 'Usuario' };
+            const isMe = r.uid === currentUser.uid;
+            return `
+              <div class="ranking-row${isMe ? ' me' : ''}">
+                <div class="pos">${i + 1}</div>
+                <div class="rank-avatar" style="${i === 0 ? 'background:var(--gold);color:#080b0f' : ''}">${u.username[0].toUpperCase()}</div>
+                <div class="rank-info">
+                  <div class="rank-name">${u.username}${isMe ? ' <span style="color:var(--green);font-size:11px">(tú)</span>' : ''}</div>
+                  <div class="rank-sub">⭐ ${r.exact} exactos</div>
+                </div>
+                <div class="rank-pts">
+                  <div class="rank-pts-val">${r.pts}</div>
+                  <div class="rank-pts-label">pts</div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
