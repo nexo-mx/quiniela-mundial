@@ -231,8 +231,11 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
+    // Esta bandera evita que el listener redirija mientras estamos registrando
+    let isRegistering = false;
+
     auth.onAuthStateChanged(user => {
-      if (user) window.location.href = 'dashboard.html';
+      if (user && !isRegistering) window.location.href = 'dashboard.html';
     });
 
     function switchTab(tab, btn) {
@@ -268,22 +271,46 @@
       const errorEl = document.getElementById('reg-error');
       const btn = document.getElementById('btn-registro');
       errorEl.style.display = 'none';
+
       if (!username || !email || !password) { showError(errorEl, 'Completa todos los campos'); return; }
       if (username.length < 3) { showError(errorEl, 'El usuario debe tener al menos 3 caracteres'); return; }
       if (password.length < 6) { showError(errorEl, 'La contraseña debe tener al menos 6 caracteres'); return; }
+
       btn.disabled = true;
       btn.textContent = 'Creando cuenta...';
+      isRegistering = true;
+
       try {
+        // Verificar si el username ya existe
         const check = await db.collection('users').where('username', '==', username).get();
-        if (!check.empty) { showError(errorEl, 'Ese nombre de usuario ya existe'); btn.disabled = false; btn.textContent = 'Crear cuenta'; return; }
+        if (!check.empty) {
+          showError(errorEl, 'Ese nombre de usuario ya existe');
+          btn.disabled = false;
+          btn.textContent = 'Crear cuenta';
+          isRegistering = false;
+          return;
+        }
+
+        // Crear cuenta en Authentication
         const cred = await auth.createUserWithEmailAndPassword(email, password);
+
+        // Guardar perfil en Firestore — esperamos a que termine ANTES de redirigir
         await db.collection('users').doc(cred.user.uid).set({
-          username, email, isAdmin: false,
+          username,
+          email,
+          isAdmin: false,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+
+        // Solo redirigir cuando Firestore ya guardó todo
+        isRegistering = false;
         window.location.href = 'dashboard.html';
+
       } catch (e) {
-        showError(errorEl, e.code === 'auth/email-already-in-use' ? 'Ese correo ya está registrado' : 'Error al crear cuenta');
+        isRegistering = false;
+        showError(errorEl, e.code === 'auth/email-already-in-use'
+          ? 'Ese correo ya está registrado'
+          : 'Error al crear cuenta. Intenta de nuevo.');
         btn.disabled = false;
         btn.textContent = 'Crear cuenta';
       }
