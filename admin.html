@@ -184,6 +184,13 @@
           <div class="success" id="seed-success">✅ Equipos cargados</div>
           <div class="error-msg" id="seed-error"></div>
         </div>
+
+        <div class="form-card">
+          <div class="form-title">🗑️ Eliminar todos los equipos</div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Borra todos los equipos de una sola vez. Útil si necesitas recargarlos desde cero.</p>
+          <button class="btn btn-danger" style="background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3)" onclick="deleteAllTeams()">Eliminar todos los equipos</button>
+          <div class="success" id="delete-teams-success">✅ Equipos eliminados</div>
+        </div>
       </div>
 
       <!-- USUARIOS -->
@@ -661,6 +668,17 @@
       if (!confirm(current ? '¿Quitar rol de admin?' : '¿Hacer administrador?')) return;
       await db.collection('users').doc(uid).update({ isAdmin: !current });
       loadUsers();
+    }
+
+    async function deleteAllTeams() {
+      if (!confirm("¿Eliminar TODOS los equipos? Esta acción no se puede deshacer.")) return;
+      const snap = await db.collection("teams").get();
+      if (snap.empty) { alert("No hay equipos que eliminar"); return; }
+      const batch = db.batch();
+      snap.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+      showSuccess("delete-teams-success");
+      loadTeams();
     }
 
     function phaseLabel(phase) {
