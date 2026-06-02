@@ -126,16 +126,26 @@
     auth.onAuthStateChanged(async user => {
       if (!user) { window.location.href = "index.html"; return; }
       currentUser = user;
-      await loadPoolBar();
-      if (!currentPoolId) {
-        const snap = await db.collection("pools").where("isActive","==",true).limit(1).get();
-        if (!snap.empty) currentPoolId = snap.docs[0].id;
+      try {
+        await loadPoolBar();
+        if (!currentPoolId) {
+          const snap = await db.collection("pools").where("isActive","==",true).limit(1).get();
+          if (!snap.empty) currentPoolId = snap.docs[0].id;
+        }
+        if (currentPoolId) {
+          loadPool();
+        } else {
+          document.getElementById("pool-name").textContent = "Sin quiniela";
+          document.getElementById("main-content").innerHTML = "<div class='empty'>No hay quinielas activas. El admin debe crear una.</div>";
+        }
+      } catch(err) {
+        document.getElementById("pool-name").textContent = "Error";
+        document.getElementById("main-content").innerHTML = "<div class='empty' style='color:#f87171'>Error de carga: " + err.message + "</div>";
       }
-      if (currentPoolId) loadPool();
     });
 
     async function loadPoolBar() {
-      const snap = await db.collection("pools").orderBy("createdAt").get();
+      const snap = await db.collection("pools").get();
       const bar = document.getElementById("pool-bar");
       bar.innerHTML = "";
       snap.forEach(doc => {
