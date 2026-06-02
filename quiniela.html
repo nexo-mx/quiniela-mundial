@@ -161,12 +161,13 @@
         bannerEl.className = "deadline-banner " + (canPredict ? "deadline-open" : "deadline-closed");
         bannerEl.textContent = canPredict ? "\u23F1 Cierre: " + formatDate(deadline) : "\uD83D\uDD12 Predicciones cerradas";
       }
-      const predsSnap = await db.collection("predictions").where("userId","==",currentUser.uid).where("poolId","==",currentPoolId).get();
+      const predsSnap = await db.collection("predictions").where("userId","==",currentUser.uid).get();
       userPredictions = {};
-      predsSnap.forEach(d => { userPredictions[d.data().matchId] = d.data(); });
-      const matchesSnap = await db.collection("matches").where("poolId","==",currentPoolId).orderBy("matchDate","asc").get();
+      predsSnap.forEach(d => { const data = d.data(); if (data.poolId === currentPoolId) userPredictions[data.matchId] = data; });
+      const matchesSnap = await db.collection("matches").where("poolId","==",currentPoolId).get();
       allMatches = [];
       matchesSnap.forEach(d => allMatches.push({ id: d.id, ...d.data() }));
+      allMatches.sort((a, b) => a.matchDate.toDate() - b.matchDate.toDate());
       if (poolData.phase === "groups") renderGroupPhase();
       else renderEliminationPhase();
     }
