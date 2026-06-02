@@ -148,28 +148,32 @@
     }
 
     async function loadPool() {
-      const poolDoc = await db.collection("pools").doc(currentPoolId).get();
-      if (!poolDoc.exists) return;
-      poolData = poolDoc.data();
-      document.getElementById("pool-name").textContent = poolData.name;
-      document.getElementById("pool-subtitle").textContent = phaseLabel(poolData.phase);
-      const now = new Date();
-      const deadline = poolData.predictionDeadline ? poolData.predictionDeadline.toDate() : null;
-      canPredict = poolData.isActive && (!deadline || now < deadline);
-      const bannerEl = document.getElementById("deadline-banner");
-      if (deadline) {
-        bannerEl.className = "deadline-banner " + (canPredict ? "deadline-open" : "deadline-closed");
-        bannerEl.textContent = canPredict ? "\u23F1 Cierre: " + formatDate(deadline) : "\uD83D\uDD12 Predicciones cerradas";
+      try {
+        const poolDoc = await db.collection("pools").doc(currentPoolId).get();
+        if (!poolDoc.exists) { document.getElementById("main-content").innerHTML = "<div class='empty'>No se encontro la quiniela.</div>"; return; }
+        poolData = poolDoc.data();
+        document.getElementById("pool-name").textContent = poolData.name;
+        document.getElementById("pool-subtitle").textContent = phaseLabel(poolData.phase);
+        const now = new Date();
+        const deadline = poolData.predictionDeadline ? poolData.predictionDeadline.toDate() : null;
+        canPredict = poolData.isActive && (!deadline || now < deadline);
+        const bannerEl = document.getElementById("deadline-banner");
+        if (deadline) {
+          bannerEl.className = "deadline-banner " + (canPredict ? "deadline-open" : "deadline-closed");
+          bannerEl.textContent = canPredict ? "\u23F1 Cierre: " + formatDate(deadline) : "\uD83D\uDD12 Predicciones cerradas";
+        }
+        const predsSnap = await db.collection("predictions").where("userId","==",currentUser.uid).get();
+        userPredictions = {};
+        predsSnap.forEach(d => { const data = d.data(); if (data.poolId === currentPoolId) userPredictions[data.matchId] = data; });
+        const matchesSnap = await db.collection("matches").where("poolId","==",currentPoolId).get();
+        allMatches = [];
+        matchesSnap.forEach(d => allMatches.push({ id: d.id, ...d.data() }));
+        allMatches.sort((a, b) => a.matchDate.toDate() - b.matchDate.toDate());
+        if (poolData.phase === "groups") renderGroupPhase();
+        else renderEliminationPhase();
+      } catch(err) {
+        document.getElementById("main-content").innerHTML = "<div class='empty' style='color:#f87171'>Error: " + err.message + "</div>";
       }
-      const predsSnap = await db.collection("predictions").where("userId","==",currentUser.uid).get();
-      userPredictions = {};
-      predsSnap.forEach(d => { const data = d.data(); if (data.poolId === currentPoolId) userPredictions[data.matchId] = data; });
-      const matchesSnap = await db.collection("matches").where("poolId","==",currentPoolId).get();
-      allMatches = [];
-      matchesSnap.forEach(d => allMatches.push({ id: d.id, ...d.data() }));
-      allMatches.sort((a, b) => a.matchDate.toDate() - b.matchDate.toDate());
-      if (poolData.phase === "groups") renderGroupPhase();
-      else renderEliminationPhase();
     }
 
     function renderGroupPhase() {
