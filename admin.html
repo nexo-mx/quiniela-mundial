@@ -150,6 +150,7 @@
     <button class="tab" onclick="switchTab('quinielas', this)">📋 Quinielas</button>
     <button class="tab" onclick="switchTab('equipos', this)">🏳️ Equipos</button>
     <button class="tab" onclick="switchTab('usuarios', this)">👤 Usuarios</button>
+    <button class="tab" onclick="switchTab('comparativa', this)">📊 Comparativa</button>
   </div>
 
   <div class="content">
@@ -251,6 +252,26 @@
       <div class="list-card" id="users-list"><div class="skeleton"></div><div class="skeleton"></div></div>
     </div>
 
+    <!-- COMPARATIVA -->
+    <div id="panel-comparativa" class="panel">
+      <div class="form-card">
+        <div class="form-title">📊 Comparativa de predicciones por grupo</div>
+        <div class="form-group">
+          <label>Selecciona un grupo de amigos</label>
+          <select id="comp-group-select" onchange="loadComparativa()">
+            <option value="">-- Selecciona un grupo --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Filtrar por quiniela</label>
+          <select id="comp-pool-select" onchange="loadComparativa()">
+            <option value="">-- Todas --</option>
+          </select>
+        </div>
+      </div>
+      <div id="comparativa-content"></div>
+    </div>
+
   </div>
 </div>
 
@@ -293,6 +314,7 @@
     await loadPools();
     loadMatches();
     loadUsers();
+    loadComparativaSelects();
   }
 
   // ─── EQUIPOS ───
@@ -761,6 +783,136 @@
 
   // Cerrar modal con Escape
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // ─── COMPARATIVA ───
+  async function loadComparativaSelects() {
+    // Grupos
+    const groupsSnap = await db.collection('groups').get();
+    const sel = document.getElementById('comp-group-select');
+    groupsSnap.forEach(doc => {
+      const opt = document.createElement('option');
+      opt.value = doc.id;
+      opt.textContent = doc.data().name;
+      sel.appendChild(opt);
+    });
+    // Quinielas
+    const poolsSel = document.getElementById('comp-pool-select');
+    const poolsSnap = await db.collection('pools').get();
+    poolsSnap.forEach(doc => {
+      const opt = document.createElement('option');
+      opt.value = doc.id;
+      opt.textContent = doc.data().name;
+      poolsSel.appendChild(opt);
+    });
+  }
+
+  async function loadComparativa() {
+    const groupId = document.getElementById('comp-group-select').value;
+    const poolId = document.getElementById('comp-pool-select').value;
+    const container = document.getElementById('comparativa-content');
+    if (!groupId) { container.innerHTML = ''; return; }
+    container.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div>';
+
+    // Get group data and members
+    const groupDoc = await db.collection('groups').doc(groupId).get();
+    const groupData = groupDoc.data();
+    const memberIds = groupData.members || [];
+
+    // Get member profiles
+    const profiles = {};
+    for (const uid of memberIds) {
+      const u = await db.collection('users').doc(uid).get();
+      if (u.exists) profiles[uid] = u.data();
+    }
+
+    // Get matches
+    let matchQuery = db.collection('matches');
+    const targetPoolId = poolId || groupData.poolId;
+    if (targetPoolId) matchQuery = matchQuery.where('poolId', '==', targetPoolId);
+    const matchesSnap = await matchQuery.get();
+    const matches = [];
+    matchesSnap.forEach(d => matches.push({ id: d.id, ...d.data() }));
+    matches.sort((a, b) => a.matchDate.toDate() - b.matchDate.toDate());
+
+    if (!matches.length) {
+      container.innerHTML = '<div class="list-card"><div class="list-item" style="color:var(--muted)">No hay partidos para mostrar</div></div>';
+      return;
+    }
+
+    // Get all predictions for these members and matches
+    const predictions = {};
+    for (const uid of memberIds) {
+      const pSnap = await db.collection('predictions').where('userId', '==', uid).get();
+      pSnap.forEach(d => {
+        const data = d.data();
+        if (!predictions[data.matchId]) predictions[data.matchId] = {};
+        predictions[data.matchId][uid] = data;
+      });
+    }
+
+    // Build HTML - group matches by day
+    let html = '';
+    let currentDay = '';
+
+    // Header row with member names
+    const memberCols = memberIds.map(uid => {
+      const p = profiles[uid] || { username: '?' };
+      return '<th style="min-width:80px;text-align:center;padding:8px 4px">' + p.username + '</th>';
+    }).join('');
+
+    matches.forEach(m => {
+      const day = m.matchDate.toDate().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Mexico_City' });
+      const time = m.matchDate.toDate().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Mexico_City' });
+
+      if (day !== currentDay) {
+        if (currentDay !== '') html += '</tbody></table></div>';
+        currentDay = day;
+        html += '<div class="list-card" style="margin-bottom:16px">' +
+          '<div class="list-header"><span>📅 ' + day.charAt(0).toUpperCase() + day.slice(1) + '</span></div>' +
+          '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
+          '<thead><tr>' +
+          '<th style="text-align:left;padding:8px 16px;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">Partido</th>' +
+          '<th style="text-align:center;padding:8px 4px;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">Real</th>' +
+          memberIds.map(uid => {
+            const p = profiles[uid] || { username: '?' };
+            return '<th style="text-align:center;padding:8px 6px;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border);min-width:70px">' + p.username + '</th>';
+          }).join('') +
+          '</tr></thead><tbody>';
+      }
+
+      const realScore = m.isFinished ? m.homeScore + '—' + m.awayScore : '—';
+      const realStyle = m.isFinished ? 'color:var(--green);font-weight:700' : 'color:var(--muted)';
+
+      const memberCells = memberIds.map(uid => {
+        const pred = predictions[m.id] && predictions[m.id][uid];
+        if (!pred) return '<td style="text-align:center;padding:10px 4px;color:var(--muted);font-size:12px">—</td>';
+        const hp = pred.homeScorePred, ap = pred.awayScorePred;
+        let pts = 0, color = 'var(--muted)', bg = '';
+        if (m.isFinished) {
+          if (hp === m.homeScore && ap === m.awayScore) { pts = 3; color = 'var(--green)'; bg = 'rgba(0,230,118,0.08)'; }
+          else if (Math.sign(hp - ap) === Math.sign(m.homeScore - m.awayScore)) { pts = 1; color = 'var(--gold)'; bg = 'rgba(255,214,10,0.08)'; }
+          else { pts = 0; color = 'var(--red)'; bg = 'rgba(248,113,113,0.08)'; }
+          return '<td style="text-align:center;padding:10px 4px;background:' + bg + '">' +
+            '<div style="font-weight:700;color:' + color + ';font-size:13px">' + hp + '—' + ap + '</div>' +
+            '<div style="font-size:10px;color:' + color + '">' + (pts === 3 ? '🎯 +3' : pts === 1 ? '✅ +1' : '❌ 0') + '</div>' +
+            '</td>';
+        }
+        return '<td style="text-align:center;padding:10px 4px;color:var(--text);font-size:13px;font-weight:600">' + hp + '—' + ap + '</td>';
+      }).join('');
+
+      html += '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:10px 16px">' +
+          '<div style="font-size:13px;font-weight:600">' + (m.homeTeamFlag||'') + ' ' + m.homeTeamName + ' vs ' + m.awayTeamName + ' ' + (m.awayTeamFlag||'') + '</div>' +
+          '<div style="font-size:11px;color:var(--muted)">' + time + ' hrs · Grupo ' + (m.group||'—') + '</div>' +
+        '</td>' +
+        '<td style="text-align:center;padding:10px 4px;' + realStyle + ';font-size:13px">' + realScore + '</td>' +
+        memberCells +
+      '</tr>';
+    });
+
+    if (currentDay !== '') html += '</tbody></table></div></div>';
+    container.innerHTML = html;
+  }
 </script>
 </body>
 </html>
