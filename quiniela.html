@@ -422,7 +422,7 @@
 
     function calcPts(hp,ap,hr,ar){
       if (hp===hr&&ap===ar) return 3;
-      if (Math.sign(hp-ap)===Math.sign(hr-ar)) return 1;
+      const pr=hp>ap?'H':hp<ap?'A':'D'; const rr=hr>ar?'H':hr<ar?'A':'D'; if(pr===rr) return 1;
       return 0;
     }
 
