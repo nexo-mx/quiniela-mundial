@@ -928,9 +928,14 @@
         const hp = pred.homeScorePred, ap = pred.awayScorePred;
         let pts = 0, color = 'var(--muted)', bg = '';
         if (m.isFinished) {
-          if (hp === m.homeScore && ap === m.awayScore) { pts = 3; color = 'var(--green)'; bg = 'rgba(0,230,118,0.08)'; }
-          else { const pr = hp > ap ? 'H' : hp < ap ? 'A' : 'D'; const rr = m.homeScore > m.awayScore ? 'H' : m.homeScore < m.awayScore ? 'A' : 'D'; if (pr === rr) { pts = 1; color = 'var(--gold)'; bg = 'rgba(255,214,10,0.08)'; } }
-          else { pts = 0; color = 'var(--red)'; bg = 'rgba(248,113,113,0.08)'; }
+          if (hp === m.homeScore && ap === m.awayScore) {
+            pts = 3; color = 'var(--green)'; bg = 'rgba(0,230,118,0.08)';
+          } else {
+            const pr = hp > ap ? 'H' : hp < ap ? 'A' : 'D';
+            const rr = m.homeScore > m.awayScore ? 'H' : m.homeScore < m.awayScore ? 'A' : 'D';
+            if (pr === rr) { pts = 1; color = 'var(--gold)'; bg = 'rgba(255,214,10,0.08)'; }
+            else { pts = 0; color = 'var(--red)'; bg = 'rgba(248,113,113,0.08)'; }
+          }
           return '<td style="text-align:center;padding:10px 4px;background:' + bg + '">' +
             '<div style="font-weight:700;color:' + color + ';font-size:13px">' + hp + '—' + ap + '</div>' +
             '<div style="font-size:10px;color:' + color + '">' + (pts === 3 ? '🎯 +3' : pts === 1 ? '✅ +1' : '❌ 0') + '</div>' +
