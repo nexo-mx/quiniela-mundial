@@ -535,6 +535,7 @@
             </div>
             <div class="match-actions">
               <div class="finished-badge">✅ ${m.homeScore} — ${m.awayScore}</div>
+              <button class="btn-sm" style="background:rgba(255,214,10,0.15);color:var(--gold);border:1px solid rgba(255,214,10,0.3)" onclick="recalcPoints('${doc.id}', ${m.homeScore}, ${m.awayScore})">🔄 Recalcular</button>
               <button class="btn-sm btn-edit" onclick="openEdit('${doc.id}')">✏️</button>
               <button class="btn-sm btn-danger" onclick="deleteMatch('${doc.id}')">🗑️</button>
             </div>
@@ -778,6 +779,37 @@
   }
 
   // ─── HELPERS ───
+  async function recalcPoints(matchId, homeScore, awayScore) {
+    if (!confirm('¿Recalcular puntos para este partido con el marcador ' + homeScore + ' — ' + awayScore + '?\nEsto sobreescribe los puntos actuales.')) return;
+    try {
+      const predsSnap = await db.collection('predictions').where('matchId', '==', matchId).get();
+      const matchDoc = await db.collection('matches').doc(matchId).get();
+      const poolId = matchDoc.data().poolId;
+      const batch = db.batch();
+      predsSnap.forEach(d => {
+        const pred = d.data();
+        const hp = Number(pred.homeScorePred);
+        const ap = Number(pred.awayScorePred);
+        const hr = Number(homeScore);
+        const ar = Number(awayScore);
+        let points = 0;
+        if (hp === hr && ap === ar) {
+          points = 3;
+        } else {
+          const pr = hp > ap ? 'H' : hp < ap ? 'A' : 'D';
+          const rr = hr > ar ? 'H' : hr < ar ? 'A' : 'D';
+          if (pr === rr) points = 1;
+        }
+        const ref = db.collection('matchPoints').doc(pred.userId + '_' + matchId);
+        batch.set(ref, { userId: pred.userId, matchId, poolId, points, calculatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      });
+      await batch.commit();
+      alert('✅ Puntos recalculados para ' + predsSnap.size + ' predicciones.');
+    } catch(e) {
+      alert('Error: ' + e.message);
+    }
+  }
+
   function phaseLabel(phase) {
     const labels = { groups: 'Fase de grupos', round_of_16: 'Octavos', quarterfinals: 'Cuartos', semifinals: 'Semis', final: 'Final' };
     return labels[phase] || phase;
