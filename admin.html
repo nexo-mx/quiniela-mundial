@@ -600,7 +600,11 @@
         const pred = d.data();
         let points = 0;
         if (pred.homeScorePred === homeScore && pred.awayScorePred === awayScore) points = 3;
-        else if (Math.sign(pred.homeScorePred - pred.awayScorePred) === Math.sign(homeScore - awayScore)) points = 1;
+        else {
+            const pr = Number(pred.homeScorePred) > Number(pred.awayScorePred) ? 'H' : Number(pred.homeScorePred) < Number(pred.awayScorePred) ? 'A' : 'D';
+            const rr = Number(homeScore) > Number(awayScore) ? 'H' : Number(homeScore) < Number(awayScore) ? 'A' : 'D';
+            if (pr === rr) points = 1;
+          }
         const ref = db.collection('matchPoints').doc(`${pred.userId}_${matchId}`);
         batch.set(ref, { userId: pred.userId, matchId, poolId: matchDoc.data().poolId, points, calculatedAt: firebase.firestore.FieldValue.serverTimestamp() });
       });
@@ -890,7 +894,7 @@
         let pts = 0, color = 'var(--muted)', bg = '';
         if (m.isFinished) {
           if (hp === m.homeScore && ap === m.awayScore) { pts = 3; color = 'var(--green)'; bg = 'rgba(0,230,118,0.08)'; }
-          else if (Math.sign(hp - ap) === Math.sign(m.homeScore - m.awayScore)) { pts = 1; color = 'var(--gold)'; bg = 'rgba(255,214,10,0.08)'; }
+          else { const pr = hp > ap ? 'H' : hp < ap ? 'A' : 'D'; const rr = m.homeScore > m.awayScore ? 'H' : m.homeScore < m.awayScore ? 'A' : 'D'; if (pr === rr) { pts = 1; color = 'var(--gold)'; bg = 'rgba(255,214,10,0.08)'; } }
           else { pts = 0; color = 'var(--red)'; bg = 'rgba(248,113,113,0.08)'; }
           return '<td style="text-align:center;padding:10px 4px;background:' + bg + '">' +
             '<div style="font-weight:700;color:' + color + ';font-size:13px">' + hp + '—' + ap + '</div>' +
