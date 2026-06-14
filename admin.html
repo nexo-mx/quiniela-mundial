@@ -600,12 +600,15 @@
       predsSnap.forEach(d => {
         const pred = d.data();
         let points = 0;
-        if (pred.homeScorePred === homeScore && pred.awayScorePred === awayScore) points = 3;
-        else {
-            const pr = Number(pred.homeScorePred) > Number(pred.awayScorePred) ? 'H' : Number(pred.homeScorePred) < Number(pred.awayScorePred) ? 'A' : 'D';
-            const rr = Number(homeScore) > Number(awayScore) ? 'H' : Number(homeScore) < Number(awayScore) ? 'A' : 'D';
-            if (pr === rr) points = 1;
-          }
+        const hp1 = Number(pred.homeScorePred), ap1 = Number(pred.awayScorePred);
+        const hr1 = Number(homeScore), ar1 = Number(awayScore);
+        if (hp1 === hr1 && ap1 === ar1) {
+          points = 3;
+        } else {
+          const pr1 = hp1 > ap1 ? 'H' : hp1 < ap1 ? 'A' : 'D';
+          const rr1 = hr1 > ar1 ? 'H' : hr1 < ar1 ? 'A' : 'D';
+          if (pr1 === rr1) points = 1;
+        }
         const ref = db.collection('matchPoints').doc(`${pred.userId}_${matchId}`);
         batch.set(ref, { userId: pred.userId, matchId, poolId: matchDoc.data().poolId, points, calculatedAt: firebase.firestore.FieldValue.serverTimestamp() });
       });
